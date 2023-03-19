@@ -1,11 +1,44 @@
 import Head from 'next/head'
-import Image from 'next/image'
 import { Inter } from 'next/font/google'
-import styles from '@/styles/Home.module.css'
+import { Authenticator } from '@aws-amplify/ui-react'
+import '@aws-amplify/ui-react/styles.css'
+import { Amplify, API, Auth } from 'aws-amplify'
 
 const inter = Inter({ subsets: ['latin'] })
 
+Amplify.configure({
+  aws_project_region: 'eu-north-1', // (optional) Default region for project
+  aws_cognito_region: 'eu-north-1', // (required) - Region where Amazon Cognito project was created
+  aws_user_pools_id: 'eu-north-1_V23f5Prru', // (optional) -  Amazon Cognito User Pool ID
+  aws_user_pools_web_client_id: '30aktds2h43cupsljn6f80bqqc', // (optional) - Amazon Cognito App Client ID (App client secret needs to be disabled)
+  aws_mandatory_sign_in: 'enable', // (optional) - Users are not allowed to get the aws credentials unless they are signed in
+  aws_cloud_logic_custom: [
+    {
+      name: 'api-sls', // (required) - API Name (This name is used used in the client app to identify the API - API.get('your-api-name', '/path'))
+      endpoint: 'https://txwashxwkg.execute-api.eu-north-1.amazonaws.com/dev', // (required) -API Gateway URL + environment
+      region: 'eu-north-1' // (required) - API Gateway region
+    }
+  ]
+});
+
 export default function Home() {
+  const getUserData = async() => {
+    const user = await Auth.currentAuthenticatedUser();
+    const idToken = user.signInUserSession.idToken.jwtToken
+    console.log('id token: ', idToken);
+    const requestHeader = {
+      headers: {
+        Authorization: idToken
+      },
+      body: {
+        email: user.attributes.email,
+        name: user.attributes.name,
+        age: 18
+      }
+    }
+    const data = await API.post('api-sls', '/hello', requestHeader);
+    console.log('Data: ', data);
+  }
   return (
     <>
       <Head>
@@ -14,110 +47,24 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className={styles.main}>
-        <div className={styles.description}>
-          <p>
-            Get started by editing&nbsp;
-            <code className={styles.code}>pages/index.js</code>
-          </p>
-          <div>
-            <a
-              href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              By{' '}
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                className={styles.vercelLogo}
-                width={100}
-                height={24}
-                priority
-              />
-            </a>
-          </div>
-        </div>
-
-        <div className={styles.center}>
-          <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
-          />
-          <div className={styles.thirteen}>
-            <Image
-              src="/thirteen.svg"
-              alt="13"
-              width={40}
-              height={31}
-              priority
-            />
-          </div>
-        </div>
-
-        <div className={styles.grid}>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Docs <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Find in-depth information about Next.js features and&nbsp;API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Learn <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Learn about Next.js in an interactive course with&nbsp;quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Templates <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Discover and deploy boilerplate example Next.js&nbsp;projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Deploy <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Instantly deploy your Next.js site to a shareable URL
-              with&nbsp;Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
+      <h1>AWS Serverless</h1>
+      <Authenticator 
+        loginMechanisms={['email']}
+        signUpAttributes={['name']}
+        socialProviders={['amazon', 'facebook', 'google']}
+      >
+        {
+          ({ signOut, user}) => (
+            <main>
+              <h1>Hello {user.attributes.name} - {user.attributes.email}</h1>
+              <p>secret msg</p>
+              <button onClick={getUserData}>Call API</button>
+              <br />
+              <button onClick={signOut}>Sign Out</button>
+            </main>
+          )
+        }
+      </Authenticator>
     </>
   )
 }
